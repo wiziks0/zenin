@@ -1,24 +1,44 @@
--- ZENIN CHEAT v8.0 (с системой ключей + HWID)
--- RShift - меню | ПКМ - настройки | Backspace - сброс бинда | LCtrl - лазание по стенам
+-- Protected script (encoded)
+if _G.__z_chk then return end
+_G.__z_chk = true
 
-if _G.ZeninCheat then return end
-_G.ZeninCheat = true
+-- ============ DECODER ============
+local function _d(s)
+    local b = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+    s = s:gsub('[^'..b..'=]', '')
+    return (s:gsub('.', function(x)
+        if x == '=' then return '' end
+        local r, f = '', (b:find(x) - 1)
+        for i = 6, 1, -1 do r = r .. (f % 2^i - f % 2^(i-1) > 0 and '1' or '0') end
+        return r
+    end):gsub('%d%d%d?%d?%d?%d?%d?%d?', function(x)
+        if #x ~= 8 then return '' end
+        local c = 0
+        for i = 1, 8 do c = c + (x:sub(i,i) == '1' and 2^(8-i) or 0) end
+        return string.char(c)
+    end))
+end
 
-local P = game:GetService("Players")
-local RS = game:GetService("RunService")
-local UIS = game:GetService("UserInputService")
-local TS = game:GetService("TweenService")
-local HS = game:GetService("HttpService")
-local VU = game:GetService("VirtualUser")
-local LP = P.LocalPlayer
-local Cam = workspace.CurrentCamera
-local Lighting = game:GetService("Lighting")
+local function _c(...)
+    local t = {...}
+    return _d(table.concat(t))
+end
 
-local FIREBASE_URL = "https://zenin-keys-default-rtdb.firebaseio.com"
-local KEY_FILE = "ZeninKey.json"
+-- ============ CONFIG (encoded) ============
+local _u = _c("aHR0cHM6Ly96ZW5pbi1rZXlz") .. _c("LWRlZmF1bHQtcnRkYi5maXJlYmFzZWlvLmNvbQ==")
+local _k = _c("a2V5cw==")
+local _h = _c("aHdpZA==")
+local _e = _c("ZXhwaXJlcw==")
+local _n = _c("bnVsbA==")
+local _j = _c("Lmpzb24=")
+local _f = _c("WmVuaW5LZXkuanNvbg==")
 
--- ========== HWID ==========
-local function getHWID()
+-- ============ ANTI-TAMPER ============
+if _G.ZeninCheatProtected then return end
+_G.ZeninCheatProtected = true
+
+-- ============ HWID ============
+local function _hw()
     local ok, id
     if syn and syn.get_hwid then ok, id = pcall(syn.get_hwid); if ok and id then return id end end
     if krnl_gethwid then ok, id = pcall(krnl_gethwid); if ok and id then return id end end
@@ -29,8 +49,8 @@ local function getHWID()
     return "UNKNOWN_" .. tostring(math.random(100000, 999999))
 end
 
--- ========== HTTP ==========
-local function httpGet(url)
+-- ============ HTTP ============
+local function _g(url)
     local ok, res = pcall(function() return game:HttpGet(url, true) end)
     if ok then return res end
     ok, res = pcall(function() return request({Url = url, Method = "GET"}).Body end)
@@ -38,7 +58,7 @@ local function httpGet(url)
     return nil
 end
 
-local function httpPut(url, body)
+local function _p(url, body)
     return pcall(function()
         request({
             Url = url, Method = "PUT",
@@ -48,46 +68,56 @@ local function httpPut(url, body)
     end)
 end
 
--- ========== ПРОВЕРКА КЛЮЧА ==========
-local function CheckKey(key, hwid)
+-- ============ KEY CHECK ============
+local function _chk(key, hwid)
     if not key or key == "" then return false, "Введите ключ" end
-    local url = FIREBASE_URL .. "/keys/" .. key .. ".json"
-    local res = httpGet(url)
+    local url = _u .. "/" .. _k .. "/" .. key .. _j
+    local res = _g(url)
     if not res then return false, "Нет соединения с сервером" end
-    if res == "null" or res == "" then return false, "Неверный ключ" end
+    if res == _n or res == "" then return false, "Неверный ключ" end
 
+    local HS = game:GetService("HttpService")
     local ok, data = pcall(function() return HS:JSONDecode(res) end)
     if not ok or type(data) ~= "table" then return false, "Ошибка базы данных" end
 
-    if data.expires and data.expires > 0 then
-        if os.time() > data.expires then return false, "Срок действия ключа истёк" end
+    if data[_e] and data[_e] > 0 then
+        if os.time() > data[_e] then return false, "Срок действия ключа истёк" end
     end
 
-    if data.hwid and data.hwid ~= "" and data.hwid ~= "null" then
-        if data.hwid ~= hwid then return false, "Ключ привязан к другому ПК" end
+    if data[_h] and data[_h] ~= "" and data[_h] ~= _n then
+        if data[_h] ~= hwid then return false, "Ключ привязан к другому ПК" end
     else
-        httpPut(FIREBASE_URL .. "/keys/" .. key .. "/hwid.json", '"' .. hwid .. '"')
+        _p(_u .. "/" .. _k .. "/" .. key .. "/" .. _h .. _j, '"' .. hwid .. '"')
     end
     return true, "OK"
 end
 
-local function SaveKey(key)
+local function _sv(key)
     if writefile then
-        pcall(function() writefile(KEY_FILE, HS:JSONEncode({key = key})) end)
+        pcall(function() writefile(_f, game:GetService("HttpService"):JSONEncode({key = key})) end)
     end
 end
 
-local function LoadKey()
-    if readfile and isfile and isfile(KEY_FILE) then
-        local ok, data = pcall(function() return HS:JSONDecode(readfile(KEY_FILE)) end)
+local function _ld()
+    if readfile and isfile and isfile(_f) then
+        local ok, data = pcall(function() return game:GetService("HttpService"):JSONDecode(readfile(_f)) end)
         if ok and data and data.key then return data.key end
     end
     return nil
 end
 
--- ========== ЗАГРУЗКА ЧИТА ==========
+-- ============ ЗАГРУЗКА ЧИТА ============
 local function StartCheat()
-    -- ===================== ТЕЛО ЧИТА =====================
+    local P = game:GetService("Players")
+    local RS = game:GetService("RunService")
+    local UIS = game:GetService("UserInputService")
+    local TS = game:GetService("TweenService")
+    local HS = game:GetService("HttpService")
+    local VU = game:GetService("VirtualUser")
+    local LP = P.LocalPlayer
+    local Cam = workspace.CurrentCamera
+    local Lighting = game:GetService("Lighting")
+
     local CFG_FILE = "ZeninCheat_Configs.json"
     local WM_FILE = "ZeninWM_Pos.json"
     local KB_FILE = "ZeninKB_Pos.json"
@@ -149,9 +179,10 @@ local function StartCheat()
         KeybindsHUD = true,
         TPPlayers = false,
         SelectedPlayer = nil,
+        SelectedPlayerName = nil,
     }
 
-    local B = {Fly=nil,HB=nil,ESP=nil,InfJump=nil,TeamCheck=nil,Spd=nil,Graphics=nil,Spider=nil,Invis=nil,ClickTP=nil,WorldColor=nil,TPPlayers=nil}
+    local B = {Fly=nil,HB=nil,ESP=nil,InfJump=nil,TeamCheck=nil,Spd=nil,Graphics=nil,Spider=nil,Invis=nil,ClickTP=nil,WorldColor=nil,TPPlayers=nil,TPPlayersBind=nil}
     local BindMode, BindTarget = false, nil
     local BindBtns = {}
     local BV, BG = nil, nil
@@ -378,10 +409,42 @@ local function StartCheat()
         local myChar = LP.Character; if not myChar then return end
         local myHRP = myChar:FindFirstChild("HumanoidRootPart"); if not myHRP then return end
         local targetHRP = target.Character:FindFirstChild("HumanoidRootPart"); if not targetHRP then return end
-        myHRP.CFrame = targetHRP.CFrame + Vector3.new(0, 3, 0)
-        pcall(function() myHRP.Velocity = Vector3.new(0,0,0); myHRP.RotVelocity = Vector3.new(0,0,0) end)
+
+        local forwardDir = targetHRP.CFrame.LookVector
+        forwardDir = Vector3.new(forwardDir.X, 0, forwardDir.Z)
+        if forwardDir.Magnitude > 0.01 then
+            forwardDir = forwardDir.Unit
+        else
+            forwardDir = Vector3.new(0, 0, -1)
+        end
+
+        local distance = 6
+        local behindPos = targetHRP.Position - forwardDir * distance
+
+        myHRP.CFrame = CFrame.new(behindPos, targetHRP.Position)
+
+        task.spawn(function()
+            for _ = 1, 5 do
+                if myHRP and myHRP.Parent then
+                    myHRP.Velocity = Vector3.new(0, 0, 0)
+                    myHRP.RotVelocity = Vector3.new(0, 0, 0)
+                end
+                task.wait()
+            end
+        end)
+
         S.SelectedPlayer = target.Name
         if KB_Flash then KB_Flash("TPPlayers") end
+    end
+
+    local function TeleportToSelectedPlayer()
+        local name = S.SelectedPlayerName
+        if not name then return end
+        local target = P:FindFirstChild(name)
+        if target then
+            TeleportToPlayer(target)
+            if KB_Flash then KB_Flash("TPPlayersBind") end
+        end
     end
 
     local function TgTPPlayers() S.TPPlayers = not S.TPPlayers end
@@ -431,7 +494,6 @@ local function StartCheat()
 
     local function TgInfJump() S.InfJump = not S.InfJump end
     local function TgTC() S.TeamCheck = not S.TeamCheck; if S.ESP then DisESP() EnESP() end; if S.HB then DisHB() EnHB() end end
-
     -- SPEED
     local function ApSpd() local h = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid"); if h then h.WalkSpeed = S.SpdVal end end
     local function RsSpd() local h = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid"); if h then h.WalkSpeed = 16 end end
@@ -602,6 +664,7 @@ local function StartCheat()
         if bindKey == "ClickTP" then return S.ClickTP end
         if bindKey == "WorldColor" then return S.WorldColor end
         if bindKey == "TPPlayers" then return S.TPPlayers end
+        if bindKey == "TPPlayersBind" then return S.SelectedPlayerName ~= nil end
         return false
     end
 
@@ -620,6 +683,7 @@ local function StartCheat()
         if B.ClickTP == k then TgClickTP() end
         if B.WorldColor == k then TgWorldColor() end
         if B.TPPlayers == k then TgTPPlayers() end
+        if B.TPPlayersBind == k then TeleportToSelectedPlayer() end
         if KB_UpdateStates then task.defer(KB_UpdateStates) end
     end
 
@@ -653,11 +717,12 @@ local function StartCheat()
             Invis = S.Invis, ClickTP = S.ClickTP, ClickTPBind = KN(S.ClickTPBind),
             WorldColor = S.WorldColor, WorldColorValue = C2T(S.WorldColorValue),
             KeybindsHUD = S.KeybindsHUD, TPPlayers = S.TPPlayers,
+            SelectedPlayerName = S.SelectedPlayerName,
             Binds = {
                 Fly=KN(B.Fly), HB=KN(B.HB), ESP=KN(B.ESP), InfJump=KN(B.InfJump),
                 TeamCheck=KN(B.TeamCheck), Spd=KN(B.Spd), Graphics=KN(B.Graphics), Spider=KN(B.Spider),
                 Invis=KN(B.Invis), ClickTP=KN(B.ClickTP), WorldColor=KN(B.WorldColor),
-                TPPlayers=KN(B.TPPlayers)
+                TPPlayers=KN(B.TPPlayers), TPPlayersBind=KN(B.TPPlayersBind)
             }
         }
     end
@@ -702,15 +767,18 @@ local function StartCheat()
         if d.WorldColorValue then S.WorldColorValue = T2C(d.WorldColorValue) end
         if d.KeybindsHUD ~= nil then S.KeybindsHUD = d.KeybindsHUD end
         S.TPPlayers = d.TPPlayers or false
+        S.SelectedPlayerName = d.SelectedPlayerName or nil
         if d.Binds then
             B.Fly = NK(d.Binds.Fly); B.HB = NK(d.Binds.HB); B.ESP = NK(d.Binds.ESP)
             B.InfJump = NK(d.Binds.InfJump); B.TeamCheck = NK(d.Binds.TeamCheck); B.Spd = NK(d.Binds.Spd)
             B.Graphics = NK(d.Binds.Graphics); B.Spider = NK(d.Binds.Spider)
             B.Invis = NK(d.Binds.Invis); B.ClickTP = NK(d.Binds.ClickTP)
             B.WorldColor = NK(d.Binds.WorldColor); B.TPPlayers = NK(d.Binds.TPPlayers)
+            B.TPPlayersBind = NK(d.Binds.TPPlayersBind)
             for k, btn in pairs(BindBtns) do
                 if btn then local bd = B[k]; btn.Text = bd and GetBN(bd) or "—"; btn.TextColor3 = bd and AC or TXD end
             end
+            task.defer(function() if KB_Refresh then KB_Refresh() end end)
         end
         for k, t in pairs(GE.toggles) do UpdToggle(k, t.getter()) end
         if GE.sliders["Скорость полёта"] then GE.sliders["Скорость полёта"].setValue(S.FlySpd) end
@@ -731,11 +799,27 @@ local function StartCheat()
         if S.Invis and not invisRunning then task.spawn(GoInvisible) end
         if S.ClickTP then StartClickTP() end
         ApplyGraphics(); ApplyWorldColor()
-        if KB_Refresh then KB_Refresh() end
+        task.defer(function()
+            if KB_Refresh then KB_Refresh() end
+            if KB_UpdateStates then KB_UpdateStates() end
+        end)
     end
 
     local function SvCfg(n) if not n or n == "" then return end; Cfgs[n] = Ser(); SaveCfgs(Cfgs); CurCfg = n end
-    local function LdCfg(n) if not Cfgs[n] then return end; ApCfg(Cfgs[n]); CurCfg = n end
+    local function LdCfg(n)
+        if not Cfgs[n] then return end
+        ApCfg(Cfgs[n])
+        CurCfg = n
+        task.spawn(function()
+            task.wait()
+            if KB_Refresh then KB_Refresh() end
+            if KB_UpdateStates then KB_UpdateStates() end
+        end)
+        task.delay(0.1, function()
+            if KB_Refresh then KB_Refresh() end
+            if KB_UpdateStates then KB_UpdateStates() end
+        end)
+    end
     local function DlCfg(n) if not Cfgs[n] then return end; Cfgs[n] = nil; SaveCfgs(Cfgs); if CurCfg == n then CurCfg = "default" end end
 
     table.insert(Conns, LP.Idled:connect(function()
@@ -908,12 +992,12 @@ local function StartCheat()
     local function CrSl(par, yO, lTxt, minV, maxV, defV, cb)
         local SL = Instance.new("TextLabel", par)
         SL.Size = UDim2.new(0.6, 0, 0, 20); SL.Position = UDim2.new(0, 12, 0, yO + 4)
-        SL.BackgroundTransparency = 1; SL.Text = lTxt; SL.TextColor3 = TXT; SL.TextSize = 12
+        SL.BackgroundTransparency = 1; SL.Text = lTxt; SL.TextColor3 = TXT; SL.TextSize = 14
         SL.Font = Enum.Font.GothamBold; SL.TextXAlignment = Enum.TextXAlignment.Left; SL.ZIndex = 31
 
         local SV = Instance.new("TextLabel", par)
         SV.Size = UDim2.new(0.3, 0, 0, 20); SV.Position = UDim2.new(0.68, 0, 0, yO + 4)
-        SV.BackgroundTransparency = 1; SV.Text = tostring(defV); SV.TextColor3 = AC; SV.TextSize = 12
+        SV.BackgroundTransparency = 1; SV.Text = tostring(defV); SV.TextColor3 = AC; SV.TextSize = 14
         SV.Font = Enum.Font.GothamBold; SV.TextXAlignment = Enum.TextXAlignment.Right; SV.ZIndex = 31
 
         local SS = Instance.new("Frame", par)
@@ -956,7 +1040,7 @@ local function StartCheat()
     local function CrCP(par, yO, lTxt, defC, cb)
         local CL = Instance.new("TextLabel", par)
         CL.Size = UDim2.new(0.6, 0, 0, 20); CL.Position = UDim2.new(0, 12, 0, yO + 4)
-        CL.BackgroundTransparency = 1; CL.Text = lTxt; CL.TextColor3 = TXT; CL.TextSize = 12
+        CL.BackgroundTransparency = 1; CL.Text = lTxt; CL.TextColor3 = TXT; CL.TextSize = 14
         CL.Font = Enum.Font.GothamBold; CL.TextXAlignment = Enum.TextXAlignment.Left; CL.ZIndex = 31
 
         local PH = Instance.new("Frame", par)
@@ -993,7 +1077,7 @@ local function StartCheat()
         end
         if lTxt then RegColor(lTxt, SetC) end
     end
-
+    -- CONFIGS окно
     local CO = Instance.new("Frame", MF)
     CO.Size = UDim2.new(1, 0, 1, 0); CO.BackgroundColor3 = BGD; CO.BackgroundTransparency = 0.05
     CO.BorderSizePixel = 0; CO.Visible = false; CO.ZIndex = 50
@@ -1086,7 +1170,7 @@ local function StartCheat()
         if n and n ~= "" then SvCfg(n); CNB.Text = ""; RefCL() end
     end)
 
-    -- TOGGLES
+    -- ============ TOGGLES ============
     CrTg("Fly", "✈️", "Fly", function() return S.Fly end, function(v) S.Fly = v end,
         function() if S.Fly then EnFly() else DisFly() end end,
         function(p) CrSl(p, 0, "Скорость полёта", 10, 500, S.FlySpd, function(v) S.FlySpd = v end); return 60 end)
@@ -1123,20 +1207,22 @@ local function StartCheat()
             if S.Invis then task.spawn(GoInvisible) else TurnVisible() end
         end, nil)
 
+    -- ============ CLICK TP ============
     CrTg("Click TP", "🖱️", "ClickTP", function() return S.ClickTP end, function(v) S.ClickTP = v end,
         function() if S.ClickTP then StartClickTP() else StopClickTP() end end,
         function(p)
-            local BL = Instance.new("TextLabel", p)
-            BL.Size = UDim2.new(0.6, 0, 0, 20); BL.Position = UDim2.new(0, 12, 0, 4)
-            BL.BackgroundTransparency = 1; BL.Text = "Бинд на ТП"; BL.TextColor3 = TXT
-            BL.TextSize = 12; BL.Font = Enum.Font.GothamBold
-            BL.TextXAlignment = Enum.TextXAlignment.Left; BL.ZIndex = 31
+            local bindLbl = Instance.new("TextLabel", p)
+            bindLbl.Size = UDim2.new(0.55, 0, 0, 22); bindLbl.Position = UDim2.new(0, 12, 0, 4)
+            bindLbl.BackgroundTransparency = 1; bindLbl.Text = "Бинд на ТП:"
+            bindLbl.TextColor3 = Color3.fromRGB(220,220,240); bindLbl.TextSize = 14
+            bindLbl.Font = Enum.Font.GothamBold
+            bindLbl.TextXAlignment = Enum.TextXAlignment.Left; bindLbl.ZIndex = 31
 
             local bBtn = Instance.new("TextButton", p)
-            bBtn.Size = UDim2.new(0, 100, 0, 26); bBtn.Position = UDim2.new(1, -112, 0, 2)
+            bBtn.Size = UDim2.new(0, 100, 0, 24); bBtn.Position = UDim2.new(1, -112, 0, 3)
             bBtn.Text = S.ClickTPBind and GetBN(S.ClickTPBind) or "—"
             bBtn.TextColor3 = S.ClickTPBind and AC or TXD
-            bBtn.TextSize = 12; bBtn.Font = Enum.Font.GothamBold
+            bBtn.TextSize = 13; bBtn.Font = Enum.Font.GothamBold
             bBtn.BackgroundColor3 = BGL; bBtn.BorderSizePixel = 0
             bBtn.ZIndex = 31; bBtn.AutoButtonColor = false
             Instance.new("UICorner", bBtn).CornerRadius = UDim.new(0, 6)
@@ -1173,33 +1259,76 @@ local function StartCheat()
                 end
             end)
             table.insert(Conns, bConn)
-            return 50
+            return 40
         end)
 
+    -- ============ TP PLAYERS ============
     CrTg("TP Players", "🧭", "TPPlayers", function() return S.TPPlayers end, function(v) S.TPPlayers = v end, nil,
         function(p)
             local title = Instance.new("TextLabel", p)
-            title.Size = UDim2.new(1, -24, 0, 18); title.Position = UDim2.new(0, 12, 0, 4)
+            title.Size = UDim2.new(1, -110, 0, 22); title.Position = UDim2.new(0, 12, 0, 4)
             title.BackgroundTransparency = 1; title.Text = "Выбери игрока:"
-            title.TextColor3 = TXT; title.TextSize = 11; title.Font = Enum.Font.GothamBold
+            title.TextColor3 = Color3.fromRGB(220,220,240); title.TextSize = 14
+            title.Font = Enum.Font.GothamBold
             title.TextXAlignment = Enum.TextXAlignment.Left; title.ZIndex = 31
 
             local rBtn = Instance.new("TextButton", p)
-            rBtn.Size = UDim2.new(0, 70, 0, 22); rBtn.Position = UDim2.new(1, -82, 0, 2)
-            rBtn.Text = "Обновить"; rBtn.TextColor3 = Color3.new(1,1,1); rBtn.TextSize = 11
-            rBtn.Font = Enum.Font.GothamBold; rBtn.BackgroundColor3 = Color3.fromRGB(40,120,200)
+            rBtn.Size = UDim2.new(0, 90, 0, 26); rBtn.Position = UDim2.new(1, -102, 0, 2)
+            rBtn.Text = "Обновить"; rBtn.TextColor3 = Color3.new(1,1,1); rBtn.TextSize = 12
+            rBtn.Font = Enum.Font.GothamBold; rBtn.BackgroundColor3 = Color3.fromRGB(210,45,70)
             rBtn.BorderSizePixel = 0; rBtn.ZIndex = 31; rBtn.AutoButtonColor = false
             Instance.new("UICorner", rBtn).CornerRadius = UDim.new(0, 6)
 
+            local bindLbl = Instance.new("TextLabel", p)
+            bindLbl.Size = UDim2.new(0.55, 0, 0, 22); bindLbl.Position = UDim2.new(0, 12, 0, 32)
+            bindLbl.BackgroundTransparency = 1; bindLbl.Text = "Бинд на ТП:"
+            bindLbl.TextColor3 = Color3.fromRGB(220,220,240); bindLbl.TextSize = 14
+            bindLbl.Font = Enum.Font.GothamBold
+            bindLbl.TextXAlignment = Enum.TextXAlignment.Left; bindLbl.ZIndex = 31
+
+            local bindBtn = Instance.new("TextButton", p)
+            bindBtn.Size = UDim2.new(0, 90, 0, 24); bindBtn.Position = UDim2.new(1, -102, 0, 31)
+            bindBtn.Text = B.TPPlayersBind and GetBN(B.TPPlayersBind) or "—"
+            bindBtn.TextColor3 = B.TPPlayersBind and AC or TXD
+            bindBtn.TextSize = 12; bindBtn.Font = Enum.Font.GothamBold
+            bindBtn.BackgroundColor3 = BGL; bindBtn.BorderSizePixel = 0
+            bindBtn.ZIndex = 31; bindBtn.AutoButtonColor = false
+            Instance.new("UICorner", bindBtn).CornerRadius = UDim.new(0, 6)
+
+            local bMode = false
+            bindBtn.MouseButton1Click:Connect(function()
+                bMode = not bMode
+                bindBtn.Text = bMode and "..." or (B.TPPlayersBind and GetBN(B.TPPlayersBind) or "—")
+                bindBtn.TextColor3 = bMode and Color3.fromRGB(80,255,140) or (B.TPPlayersBind and AC or TXD)
+            end)
+
+            local bConn = UIS.InputBegan:Connect(function(input, gp)
+                if not bMode then return end
+                if gp and input.UserInputType == Enum.UserInputType.Keyboard then return end
+                if input.KeyCode == Enum.KeyCode.Backspace then
+                    B.TPPlayersBind = nil
+                    bindBtn.Text = "—"; bindBtn.TextColor3 = TXD; bMode = false
+                    if KB_Refresh then KB_Refresh() end
+                    return
+                end
+                if input.KeyCode and input.KeyCode ~= Enum.KeyCode.Unknown then
+                    B.TPPlayersBind = input.KeyCode
+                    bindBtn.Text = GetBN(input.KeyCode); bindBtn.TextColor3 = AC; bMode = false
+                    if KB_Refresh then KB_Refresh() end
+                end
+            end)
+            table.insert(Conns, bConn)
+
             local curLbl = Instance.new("TextLabel", p)
-            curLbl.Size = UDim2.new(1, -24, 0, 16); curLbl.Position = UDim2.new(0, 12, 0, 26)
+            curLbl.Size = UDim2.new(1, -24, 0, 20); curLbl.Position = UDim2.new(0, 12, 0, 62)
             curLbl.BackgroundTransparency = 1
-            curLbl.Text = "Выбран: " .. (S.SelectedPlayer or "никто")
-            curLbl.TextColor3 = AC; curLbl.TextSize = 11; curLbl.Font = Enum.Font.GothamBold
+            curLbl.Text = "Цель: " .. (S.SelectedPlayerName or "не выбрана")
+            curLbl.TextColor3 = Color3.fromRGB(255,100,130); curLbl.TextSize = 14
+            curLbl.Font = Enum.Font.GothamBold
             curLbl.TextXAlignment = Enum.TextXAlignment.Left; curLbl.ZIndex = 31
 
             local listFrame = Instance.new("ScrollingFrame", p)
-            listFrame.Size = UDim2.new(1, -24, 0, 130); listFrame.Position = UDim2.new(0, 12, 0, 48)
+            listFrame.Size = UDim2.new(1, -24, 0, 118); listFrame.Position = UDim2.new(0, 12, 0, 86)
             listFrame.BackgroundColor3 = BGM; listFrame.BackgroundTransparency = 0.4
             listFrame.BorderSizePixel = 0; listFrame.ScrollBarThickness = 4
             listFrame.ScrollBarImageColor3 = AC
@@ -1221,33 +1350,45 @@ local function StartCheat()
                 if #players == 0 then
                     local e = Instance.new("TextLabel", listFrame)
                     e.Size = UDim2.new(1, 0, 0, 24); e.BackgroundTransparency = 1
-                    e.Text = "Нет игроков"; e.TextColor3 = TXD; e.TextSize = 11
+                    e.Text = "Нет игроков"; e.TextColor3 = TXD; e.TextSize = 14
                     e.Font = Enum.Font.GothamBold; e.ZIndex = 32
                     return
                 end
                 for _, plr in ipairs(players) do
                     local row = Instance.new("Frame", listFrame)
-                    row.Size = UDim2.new(1, 0, 0, 26)
-                    row.BackgroundColor3 = (S.SelectedPlayer == plr.Name) and Color3.fromRGB(60,140,90) or BGL
+                    row.Size = UDim2.new(1, 0, 0, 32)
+                    row.BackgroundColor3 = (S.SelectedPlayerName == plr.Name) and Color3.fromRGB(60,140,90) or BGL
                     row.BorderSizePixel = 0; row.ZIndex = 32
                     Instance.new("UICorner", row).CornerRadius = UDim.new(0, 6)
 
                     local nm = Instance.new("TextLabel", row)
-                    nm.Size = UDim2.new(1, -80, 1, 0); nm.Position = UDim2.new(0, 8, 0, 0)
+                    nm.Size = UDim2.new(1, -150, 1, 0); nm.Position = UDim2.new(0, 10, 0, 0)
                     nm.BackgroundTransparency = 1; nm.Text = plr.Name
-                    nm.TextColor3 = TXT; nm.TextSize = 11; nm.Font = Enum.Font.GothamBold
+                    nm.TextColor3 = (S.SelectedPlayerName == plr.Name) and Color3.fromRGB(180,255,220) or Color3.fromRGB(235,235,245)
+                    nm.TextSize = 14; nm.Font = Enum.Font.GothamBold
                     nm.TextXAlignment = Enum.TextXAlignment.Left; nm.ZIndex = 33
 
+                    local selB = Instance.new("TextButton", row)
+                    selB.Size = UDim2.new(0, 60, 0, 24); selB.Position = UDim2.new(1, -132, 0.5, -12)
+                    selB.Text = "Выбрать"; selB.TextColor3 = Color3.new(1,1,1); selB.TextSize = 12
+                    selB.Font = Enum.Font.GothamBold; selB.BackgroundColor3 = Color3.fromRGB(60,110,200)
+                    selB.BorderSizePixel = 0; selB.ZIndex = 33; selB.AutoButtonColor = false
+                    Instance.new("UICorner", selB).CornerRadius = UDim.new(0, 6)
+                    selB.MouseButton1Click:Connect(function()
+                        S.SelectedPlayerName = plr.Name
+                        curLbl.Text = "Цель: " .. plr.Name
+                        BuildList()
+                    end)
+
                     local tpB = Instance.new("TextButton", row)
-                    tpB.Size = UDim2.new(0, 60, 0, 20); tpB.Position = UDim2.new(1, -66, 0.5, -10)
-                    tpB.Text = "TP"; tpB.TextColor3 = Color3.new(1,1,1); tpB.TextSize = 11
-                    tpB.Font = Enum.Font.GothamBold; tpB.BackgroundColor3 = Color3.fromRGB(40,120,200)
+                    tpB.Size = UDim2.new(0, 60, 0, 24); tpB.Position = UDim2.new(1, -66, 0.5, -12)
+                    tpB.Text = "TP"; tpB.TextColor3 = Color3.new(1,1,1); tpB.TextSize = 12
+                    tpB.Font = Enum.Font.GothamBold; tpB.BackgroundColor3 = Color3.fromRGB(210,45,70)
                     tpB.BorderSizePixel = 0; tpB.ZIndex = 33; tpB.AutoButtonColor = false
                     Instance.new("UICorner", tpB).CornerRadius = UDim.new(0, 6)
                     tpB.MouseButton1Click:Connect(function()
                         TeleportToPlayer(plr)
                         S.SelectedPlayer = plr.Name
-                        curLbl.Text = "Выбран: " .. plr.Name
                         BuildList()
                     end)
                 end
@@ -1268,7 +1409,7 @@ local function StartCheat()
                 end
             end)
             table.insert(Conns, updConn)
-            return 190
+            return 214
         end)
 
     CrTg("Team Check", "👥", "TeamCheck", function() return S.TeamCheck end, function(v) S.TeamCheck = v end,
@@ -1332,7 +1473,7 @@ local function StartCheat()
         if WorldColorSky then WorldColorSky:Destroy() end
         if WorldColorAtmos then WorldColorAtmos:Destroy() end
         for _, c in ipairs(Conns) do if c then c:Disconnect() end end
-        SG:Destroy(); _G.ZeninCheat = false
+        SG:Destroy(); _G.ZeninCheatProtected = false
     end)
 
     local OB = Instance.new("TextButton", SG)
@@ -1542,6 +1683,7 @@ local function StartCheat()
         if B.ClickTP then entries[#entries+1] = {"Click TP", GetBN(B.ClickTP), "ClickTP"} end
         if B.WorldColor then entries[#entries+1] = {"World Color", GetBN(B.WorldColor), "WorldColor"} end
         if B.TPPlayers then entries[#entries+1] = {"TP Players", GetBN(B.TPPlayers), "TPPlayers"} end
+        if B.TPPlayersBind then entries[#entries+1] = {"TP to Selected", GetBN(B.TPPlayersBind), "TPPlayersBind"} end
         if #entries == 0 then
             local row = Instance.new("Frame", KBList)
             row.Size = UDim2.new(1, 0, 0, 18); row.BackgroundTransparency = 1; row.ZIndex = 252
@@ -1724,8 +1866,7 @@ local function StartCheat()
     EnsureWorldColor()
     KB_Refresh()
 
-    print("[ZENIN] Чит успешно загружен. Ключ: " .. tostring(LoadKey()))
-    -- ================== КОНЕЦ ТЕЛА ЧИТА ==================
+    print("[ZENIN] Чит успешно загружен. Ключ: " .. tostring(_ld()))
 end
 
 -- ========== ОКНО АКТИВАЦИИ ==========
@@ -1827,7 +1968,7 @@ local function ShowActivation()
         TS:Create(Btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(255, 60, 90)}):Play()
     end)
 
-    local hwid = getHWID()
+    local hwid = _hw()
     print("[ZENIN] HWID: " .. hwid)
 
     local busy = false
@@ -1839,11 +1980,11 @@ local function ShowActivation()
         Status.Text = "Проверка..."
         Status.TextColor3 = Color3.fromRGB(255, 200, 80)
         task.spawn(function()
-            local ok, err = CheckKey(key, hwid)
+            local ok, err = _chk(key, hwid)
             if ok then
                 Status.Text = "Успешно! Запуск..."
                 Status.TextColor3 = Color3.fromRGB(80, 255, 140)
-                SaveKey(key)
+                _sv(key)
                 task.wait(0.6)
                 SG:Destroy()
                 StartCheat()
@@ -1863,16 +2004,16 @@ end
 
 -- ========== ГЛАВНАЯ ЛОГИКА ==========
 task.spawn(function()
-    local savedKey = LoadKey()
+    local savedKey = _ld()
     if savedKey then
         print("[ZENIN] Проверяем сохранённый ключ...")
-        local ok, err = CheckKey(savedKey, getHWID())
+        local ok, err = _chk(savedKey, _hw())
         if ok then
             print("[ZENIN] Ключ валиден, запускаем чит.")
             StartCheat()
         else
             print("[ZENIN] Ключ невалиден: " .. tostring(err))
-            if writefile then pcall(function() writefile(KEY_FILE, "") end) end
+            if writefile then pcall(function() writefile(_f, "") end) end
             ShowActivation()
         end
     else
